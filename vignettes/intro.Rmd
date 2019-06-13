@@ -1,0 +1,110 @@
+---
+title: "Data packages in R using SQLite and FTS"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{intro}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+## World Factbook use case
+
+This package is an example of how you can use SQLite Database FTS functionality in an R package. It provides data access to some (not so well curated?) data from the [World Factbook data](https://github.com/factbook/factbook.sql/releases/download/v0.1/factbook.db) distributed in the SQLite database format which is initially downloaded from a remote location. 
+
+A local SQLite db is then created based this distribution of data and extended to support Full Text Search functionality. This data is then exposed to R through a couple of functions returning tibbles. 
+
+The support for FTS - Full Text Search - is provided by using the [`RSQLite` package](https://rsqlite.r-dbi.org/articles/rsqlite) which embeds the fast and SQL-ansi-compliant sqlite database engine portably and thereby embeds the FTS5 seach capabilities built into this database engine.
+
+## Rationale
+
+The idea is to show how to provide access to data in a potentially larger database - the database in the example is not huge but could be a lot bigger - and show how to enable use of in-built full text search capabilities in SQLite. The approach is to download potentially big remote data and installing it locally using the [`rappdirs` R package](https://rdrr.io/cran/rappdirs/), rather than bundling it directly into the package.
+
+This can be useful if you are considering to release a package to CRAN that provides access to larger datasets in R and you also want to follow the general recommendation from the CRAN checks that "package data should be smaller than a megabyte". With this approach you can avoid having to argue separately with the CRAN gods for making an exception to the 1 MB rule (see details in [Hadley Wickhams R Packages book, the sections on data packages and CRAN rules](http://r-pkgs.had.co.nz/data.html#data-cran)). Your package will stay small. 
+
+There are a few minor practical drawbacks - mostly that your package will initially not work off-line until at least one initial successfull call to download the data has been made using `factbook_download()` which would require a connection to the Internet.
+
+The upside is being able to tap into things like Full Text Search for datasets and with this approach the package can stay small and pass the CRAN checks without requiring exceptions, while the dataset size is only limited to 2TB (an SQLite limitation).
+
+# Installing
+
+```{r, eval=FALSE}
+
+devtools::install_github("mskyttner/factbook", build_vignettes = TRUE)
+
+```
+
+# Usage
+
+After installing, you need to first download the data and can then proceed to work it it:
+
+
+```{r setup, message=FALSE}
+
+library(factbook)
+library(dplyr)
+
+# get the data, only required to run once initially
+factbook_download()
+
+# use the data
+df <- factbook_tibble()
+
+```
+
+This is a few of the rows and columns in the data:
+
+```{r}
+knitr::kable(df %>% select(1:5) %>% slice(1:5))
+```
+
+To make a search in the database using the Full Text Search capabilities:
+
+```{r}
+# display info for any country matching the search term "vatican",
+# expecting to see data related to the Vatican City
+factbook_search_country("vatican")
+
+# display info for countries that have "new" in their name:
+factbook_search_country("new")
+
+# display info for countries that are islands:
+factbook_search_country("island")
+
+```
+
+The database could have any number of tables and you only need to expose the relevant parts through the functions you provide in the package.
+
+# Data quality
+
+This dataset appears to have many missing values and may contain some errors:
+
+```{r}
+
+# some records have negative population values,
+# is it due to the data or something in our software stack
+# converting the data to negative values?
+issues_negative <- 
+  df %>%
+  filter(population < 0) %>%
+  select(name, population)
+
+knitr::kable(issues_negative)
+
+# some columns have missing values
+issues_missing <- 
+  df %>% 
+  summarise_all(~ sum(is.na(.))) %>% 
+  t() %>% as.vector() %>% tibble() %>% 
+  mutate(colname = names(df)) %>% 
+  select(colname, n_missing = 1)
+
+knitr::kable(issues_missing)
+```
+

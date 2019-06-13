@@ -1,0 +1,23 @@
+Package: factbook
+Title: World Factbook Example Data using RSQLite and FTS
+Version: 0.0.0.9000
+Authors@R: 
+    person(given = "Markus",
+           family = "Skyttner",
+           role = c("aut", "cre"),
+           email = "markus@example.com")
+Description: This data provides access to some World Factbook data in sqlite format.
+License: MIT + file LICENSE
+Encoding: UTF-8
+LazyData: true
+Imports: 
+    RSQLite,
+    tibble,
+    dplyr,
+    rappdirs
+RoxygenNote: 6.1.1
+Suggests: 
+    testthat (>= 2.1.0),
+    knitr,
+    rmarkdown
+VignetteBuilder: knitr

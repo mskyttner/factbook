@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+
+<meta charset="utf-8" />
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta name="generator" content="pandoc" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+
+
+<title>Data packages in R using SQLite and FTS</title>
+
+
+
+<style type="text/css">code{white-space: pre;}</style>
+<style type="text/css" data-origin="pandoc">
+a.sourceLine { display: inline-block; line-height: 1.25; }
+a.sourceLine { pointer-events: none; color: inherit; text-decoration: inherit; }
+a.sourceLine:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode { white-space: pre; position: relative; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+code.sourceCode { white-space: pre-wrap; }
+a.sourceLine { text-indent: -1em; padding-left: 1em; }
+}
+pre.numberSource a.sourceLine
+  { position: relative; left: -4em; }
+pre.numberSource a.sourceLine::before
+  { content: attr(data-line-number);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; pointer-events: all; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+    color: #aaaaaa;
+  }
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+div.sourceCode
+  {  }
+@media screen {
+a.sourceLine::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+code span.at { color: #7d9029; } /* Attribute */
+code span.bn { color: #40a070; } /* BaseN */
+code span.bu { } /* BuiltIn */
+code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+code span.ch { color: #4070a0; } /* Char */
+code span.cn { color: #880000; } /* Constant */
+code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+code span.dt { color: #902000; } /* DataType */
+code span.dv { color: #40a070; } /* DecVal */
+code span.er { color: #ff0000; font-weight: bold; } /* Error */
+code span.ex { } /* Extension */
+code span.fl { color: #40a070; } /* Float */
+code span.fu { color: #06287e; } /* Function */
+code span.im { } /* Import */
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+code span.op { color: #666666; } /* Operator */
+code span.ot { color: #007020; } /* Other */
+code span.pp { color: #bc7a00; } /* Preprocessor */
+code span.sc { color: #4070a0; } /* SpecialChar */
+code span.ss { color: #bb6688; } /* SpecialString */
+code span.st { color: #4070a0; } /* String */
+code span.va { color: #19177c; } /* Variable */
+code span.vs { color: #4070a0; } /* VerbatimString */
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+
+</style>
+<script>
+// apply pandoc div.sourceCode style to pre.sourceCode instead
+(function() {
+  var sheets = document.styleSheets;
+  for (var i = 0; i < sheets.length; i++) {
+    if (sheets[i].ownerNode.dataset["origin"] !== "pandoc") continue;
+    try { var rules = sheets[i].cssRules; } catch (e) { continue; }
+    for (var j = 0; j < rules.length; j++) {
+      var rule = rules[j];
+      // check if there is a div.sourceCode rule
+      if (rule.type !== rule.STYLE_RULE || rule.selectorText !== "div.sourceCode") continue;
+      var style = rule.style.cssText;
+      // check if color or background-color is set
+      if (rule.style.color === '' || rule.style.backgroundColor === '') continue;
+      // replace div.sourceCode by a pre.sourceCode rule
+      sheets[i].deleteRule(j);
+      sheets[i].insertRule('pre.sourceCode{' + style + '}', j);
+    }
+  }
+})();
+</script>
+
+
+
+<style type="text/css">body {
+background-color: #fff;
+margin: 1em auto;
+max-width: 700px;
+overflow: visible;
+padding-left: 2em;
+padding-right: 2em;
+font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+font-size: 14px;
+line-height: 1.35;
+}
+#header {
+text-align: center;
+}
+#TOC {
+clear: both;
+margin: 0 0 10px 10px;
+padding: 4px;
+width: 400px;
+border: 1px solid #CCCCCC;
+border-radius: 5px;
+background-color: #f6f6f6;
+font-size: 13px;
+line-height: 1.3;
+}
+#TOC .toctitle {
+font-weight: bold;
+font-size: 15px;
+margin-left: 5px;
+}
+#TOC ul {
+padding-left: 40px;
+margin-left: -1.5em;
+margin-top: 5px;
+margin-bottom: 5px;
+}
+#TOC ul ul {
+margin-left: -2em;
+}
+#TOC li {
+line-height: 16px;
+}
+table {
+margin: 1em auto;
+border-width: 1px;
+border-color: #DDDDDD;
+border-style: outset;
+border-collapse: collapse;
+}
+table th {
+border-width: 2px;
+padding: 5px;
+border-style: inset;
+}
+table td {
+border-width: 1px;
+border-style: inset;
+line-height: 18px;
+padding: 5px 5px;
+}
+table, table th, table td {
+border-left-style: none;
+border-right-style: none;
+}
+table thead, table tr.even {
+background-color: #f7f7f7;
+}
+p {
+margin: 0.5em 0;
+}
+blockquote {
+background-color: #f6f6f6;
+padding: 0.25em 0.75em;
+}
+hr {
+border-style: solid;
+border: none;
+border-top: 1px solid #777;
+margin: 28px 0;
+}
+dl {
+margin-left: 0;
+}
+dl dd {
+margin-bottom: 13px;
+margin-left: 13px;
+}
+dl dt {
+font-weight: bold;
+}
+ul {
+margin-top: 0;
+}
+ul li {
+list-style: circle outside;
+}
+ul ul {
+margin-bottom: 0;
+}
+pre, code {
+background-color: #f7f7f7;
+border-radius: 3px;
+color: #333;
+white-space: pre-wrap; 
+}
+pre {
+border-radius: 3px;
+margin: 5px 0px 10px 0px;
+padding: 10px;
+}
+pre:not([class]) {
+background-color: #f7f7f7;
+}
+code {
+font-family: Consolas, Monaco, 'Courier New', monospace;
+font-size: 85%;
+}
+p > code, li > code {
+padding: 2px 0px;
+}
+div.figure {
+text-align: center;
+}
+img {
+background-color: #FFFFFF;
+padding: 2px;
+border: 1px solid #DDDDDD;
+border-radius: 3px;
+border: 1px solid #CCCCCC;
+margin: 0 5px;
+}
+h1 {
+margin-top: 0;
+font-size: 35px;
+line-height: 40px;
+}
+h2 {
+border-bottom: 4px solid #f7f7f7;
+padding-top: 10px;
+padding-bottom: 2px;
+font-size: 145%;
+}
+h3 {
+border-bottom: 2px solid #f7f7f7;
+padding-top: 10px;
+font-size: 120%;
+}
+h4 {
+border-bottom: 1px solid #f7f7f7;
+margin-left: 8px;
+font-size: 105%;
+}
+h5, h6 {
+border-bottom: 1px solid #ccc;
+font-size: 105%;
+}
+a {
+color: #0033dd;
+text-decoration: none;
+}
+a:hover {
+color: #6666ff; }
+a:visited {
+color: #800080; }
+a:visited:hover {
+color: #BB00BB; }
+a[href^="http:"] {
+text-decoration: underline; }
+a[href^="https:"] {
+text-decoration: underline; }
+
+code > span.kw { color: #555; font-weight: bold; } 
+code > span.dt { color: #902000; } 
+code > span.dv { color: #40a070; } 
+code > span.bn { color: #d14; } 
+code > span.fl { color: #d14; } 
+code > span.ch { color: #d14; } 
+code > span.st { color: #d14; } 
+code > span.co { color: #888888; font-style: italic; } 
+code > span.ot { color: #007020; } 
+code > span.al { color: #ff0000; font-weight: bold; } 
+code > span.fu { color: #900; font-weight: bold; }  code > span.er { color: #a61717; background-color: #e3d2d2; } 
+</style>
+
+
+
+
+</head>
+
+<body>
+
+
+
+
+<h1 class="title toc-ignore">Data packages in R using SQLite and FTS</h1>
+
+
+
+<div id="world-factbook-use-case" class="section level2">
+<h2>World Factbook use case</h2>
+<p>This package is an example of how you can use SQLite Database FTS functionality in an R package. It provides data access to some (not so well curated?) data from the <a href="https://github.com/factbook/factbook.sql/releases/download/v0.1/factbook.db">World Factbook data</a> distributed in the SQLite database format which is initially downloaded from a remote location.</p>
+<p>A local SQLite db is then created based this distribution of data and extended to support Full Text Search functionality. This data is then exposed to R through a couple of functions returning tibbles.</p>
+<p>The support for FTS - Full Text Search - is provided by using the <a href="https://rsqlite.r-dbi.org/articles/rsqlite"><code>RSQLite</code> package</a> which embeds the fast and SQL-ansi-compliant sqlite database engine portably and thereby embeds the FTS5 seach capabilities built into this database engine.</p>
+</div>
+<div id="rationale" class="section level2">
+<h2>Rationale</h2>
+<p>The idea is to show how to provide access to data in a potentially larger database - the database in the example is not huge but could be a lot bigger - and show how to enable use of in-built full text search capabilities in SQLite. The approach is to download potentially big remote data and installing it locally using the <a href="https://rdrr.io/cran/rappdirs/"><code>rappdirs</code> R package</a>, rather than bundling it directly into the package.</p>
+<p>This can be useful if you are considering to release a package to CRAN that provides access to larger datasets in R and you also want to follow the general recommendation from the CRAN checks that “package data should be smaller than a megabyte”. With this approach you can avoid having to argue separately with the CRAN gods for making an exception to the 1 MB rule (see details in <a href="http://r-pkgs.had.co.nz/data.html#data-cran">Hadley Wickhams R Packages book, the sections on data packages and CRAN rules</a>). Your package will stay small.</p>
+<p>There are a few minor practical drawbacks - mostly that your package will initially not work off-line until at least one initial successfull call to download the data has been made using <code>factbook_download()</code> which would require a connection to the Internet.</p>
+<p>The upside is being able to tap into things like Full Text Search for datasets and with this approach the package can stay small and pass the CRAN checks without requiring exceptions, while the dataset size is only limited to 2TB (an SQLite limitation).</p>
+</div>
+<div id="installing" class="section level1">
+<h1>Installing</h1>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb1-1" data-line-number="1"></a>
+<a class="sourceLine" id="cb1-2" data-line-number="2">devtools<span class="op">::</span><span class="kw">install_github</span>(<span class="st">&quot;mskyttner/factbook&quot;</span>, <span class="dt">build_vignettes =</span> <span class="ot">TRUE</span>)</a></code></pre></div>
+</div>
+<div id="usage" class="section level1">
+<h1>Usage</h1>
+<p>After installing, you need to first download the data and can then proceed to work it it:</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb2-1" data-line-number="1"></a>
+<a class="sourceLine" id="cb2-2" data-line-number="2"><span class="kw">library</span>(factbook)</a>
+<a class="sourceLine" id="cb2-3" data-line-number="3"><span class="kw">library</span>(dplyr)</a>
+<a class="sourceLine" id="cb2-4" data-line-number="4"></a>
+<a class="sourceLine" id="cb2-5" data-line-number="5"><span class="co"># get the data, only required to run once initially</span></a>
+<a class="sourceLine" id="cb2-6" data-line-number="6"><span class="kw">factbook_download</span>()</a>
+<a class="sourceLine" id="cb2-7" data-line-number="7"></a>
+<a class="sourceLine" id="cb2-8" data-line-number="8"><span class="co"># use the data</span></a>
+<a class="sourceLine" id="cb2-9" data-line-number="9">df &lt;-<span class="st"> </span><span class="kw">factbook_tibble</span>()</a></code></pre></div>
+<p>This is a few of the rows and columns in the data:</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb3-1" data-line-number="1">knitr<span class="op">::</span><span class="kw">kable</span>(df <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">select</span>(<span class="dv">1</span><span class="op">:</span><span class="dv">5</span>) <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">slice</span>(<span class="dv">1</span><span class="op">:</span><span class="dv">5</span>))</a></code></pre></div>
+<table>
+<thead>
+<tr class="header">
+<th align="right">id</th>
+<th align="left">code</th>
+<th align="left">name</th>
+<th align="right">area</th>
+<th align="right">area_land</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="right">1</td>
+<td align="left">af</td>
+<td align="left">Afghanistan</td>
+<td align="right">652230</td>
+<td align="right">652230</td>
+</tr>
+<tr class="even">
+<td align="right">2</td>
+<td align="left">al</td>
+<td align="left">Albania</td>
+<td align="right">28748</td>
+<td align="right">27398</td>
+</tr>
+<tr class="odd">
+<td align="right">3</td>
+<td align="left">ag</td>
+<td align="left">Algeria</td>
+<td align="right">2381741</td>
+<td align="right">2381741</td>
+</tr>
+<tr class="even">
+<td align="right">4</td>
+<td align="left">an</td>
+<td align="left">Andorra</td>
+<td align="right">468</td>
+<td align="right">468</td>
+</tr>
+<tr class="odd">
+<td align="right">5</td>
+<td align="left">ao</td>
+<td align="left">Angola</td>
+<td align="right">1246700</td>
+<td align="right">1246700</td>
+</tr>
+</tbody>
+</table>
+<p>To make a search in the database using the Full Text Search capabilities:</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb4-1" data-line-number="1"><span class="co"># display info for any country matching the search term &quot;vatican&quot;,</span></a>
+<a class="sourceLine" id="cb4-2" data-line-number="2"><span class="co"># expecting to see data related to the Vatican City</span></a>
+<a class="sourceLine" id="cb4-3" data-line-number="3"><span class="kw">factbook_search_country</span>(<span class="st">&quot;vatican&quot;</span>)</a>
+<a class="sourceLine" id="cb4-4" data-line-number="4"><span class="co">#&gt; # A tibble: 1 x 13</span></a>
+<a class="sourceLine" id="cb4-5" data-line-number="5"><span class="co">#&gt;   name     id code   area area_land area_water population population_grow…</span></a>
+<a class="sourceLine" id="cb4-6" data-line-number="6"><span class="co">#&gt;   &lt;chr&gt; &lt;int&gt; &lt;chr&gt; &lt;int&gt;     &lt;int&gt;      &lt;int&gt; &lt;integr64&gt;            &lt;dbl&gt;</span></a>
+<a class="sourceLine" id="cb4-7" data-line-number="7"><span class="co">#&gt; 1 Holy…   190 vt        0         0          0 842                       0</span></a>
+<a class="sourceLine" id="cb4-8" data-line-number="8"><span class="co">#&gt; # … with 5 more variables: birth_rate &lt;dbl&gt;, death_rate &lt;dbl&gt;,</span></a>
+<a class="sourceLine" id="cb4-9" data-line-number="9"><span class="co">#&gt; #   migration_rate &lt;dbl&gt;, created_at &lt;chr&gt;, updated_at &lt;chr&gt;</span></a>
+<a class="sourceLine" id="cb4-10" data-line-number="10"></a>
+<a class="sourceLine" id="cb4-11" data-line-number="11"><span class="co"># display info for countries that have &quot;new&quot; in their name:</span></a>
+<a class="sourceLine" id="cb4-12" data-line-number="12"><span class="kw">factbook_search_country</span>(<span class="st">&quot;new&quot;</span>)</a>
+<a class="sourceLine" id="cb4-13" data-line-number="13"><span class="co">#&gt; # A tibble: 3 x 13</span></a>
+<a class="sourceLine" id="cb4-14" data-line-number="14"><span class="co">#&gt;   name     id code    area area_land area_water population population_grow…</span></a>
+<a class="sourceLine" id="cb4-15" data-line-number="15"><span class="co">#&gt;   &lt;chr&gt; &lt;int&gt; &lt;chr&gt;  &lt;int&gt;     &lt;int&gt;      &lt;int&gt; &lt;integr64&gt;            &lt;dbl&gt;</span></a>
+<a class="sourceLine" id="cb4-16" data-line-number="16"><span class="co">#&gt; 1 New …   126 nz    267710    267710         NA 4438393                0.82</span></a>
+<a class="sourceLine" id="cb4-17" data-line-number="17"><span class="co">#&gt; 2 Papu…   135 pp    462840    452860       9980 6672429                1.78</span></a>
+<a class="sourceLine" id="cb4-18" data-line-number="18"><span class="co">#&gt; 3 New …   211 nc     18575     18275        300  271615                1.38</span></a>
+<a class="sourceLine" id="cb4-19" data-line-number="19"><span class="co">#&gt; # … with 5 more variables: birth_rate &lt;dbl&gt;, death_rate &lt;dbl&gt;,</span></a>
+<a class="sourceLine" id="cb4-20" data-line-number="20"><span class="co">#&gt; #   migration_rate &lt;dbl&gt;, created_at &lt;chr&gt;, updated_at &lt;chr&gt;</span></a></code></pre></div>
+<p>The database could have any number of tables and you only need to expose the relevant parts through the functions you provide in the package.</p>
+</div>
+
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>
